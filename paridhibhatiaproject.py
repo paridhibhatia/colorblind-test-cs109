@@ -81,7 +81,7 @@ st.subheader(f"Test #{st.session_state.test_num + 1}")
 np.random.seed(st.session_state.test_num * 42)
 
 correct_value = np.random.randint(0, 100)
-num_dots = 500
+num_dots = 2000  # Increased from 500 to make it much harder to see
 
 x = np.random.rand(num_dots)
 y = np.random.rand(num_dots)
@@ -94,14 +94,14 @@ num_brightness = np.mean(number_color)
 contrast = abs(num_brightness - bg_brightness)
 
 # Make tests progressively harder by reducing effective contrast
-difficulty_factor = 1.0 - (st.session_state.test_num * 0.15)  # Gets harder each test
-difficulty_factor = max(difficulty_factor, 0.3)  # Don't make it impossibly hard
+difficulty_factor = 1.0 - (st.session_state.test_num * 0.10)  # Gets harder more slowly
+difficulty_factor = max(difficulty_factor, 0.5)  # Keep minimum at 50% to maintain uncertainty
 contrast = contrast * difficulty_factor
 
 # Calculate likelihoods (probability of being CORRECT)
-# Made much harder - less difference between colorblind and non-colorblind performance
-p_correct_if_not_cb = min(0.55 + 0.15 * contrast, 0.75)  # Reduced from 0.7-0.98
-p_correct_if_cb = min(0.25 + 0.15 * contrast, 0.55)     # Increased from 0.05-0.35
+# Made harder with less separation between colorblind/non-colorblind
+p_correct_if_not_cb = min(0.50 + 0.20 * contrast, 0.75)  # 50-75% range
+p_correct_if_cb = min(0.30 + 0.15 * contrast, 0.60)      # 30-60% range
 
 # --------------------------
 # DISPLAY TEST
@@ -109,7 +109,7 @@ p_correct_if_cb = min(0.25 + 0.15 * contrast, 0.55)     # Increased from 0.05-0.
 fig, ax = plt.subplots(figsize=(5, 5))
 circle = plt.Circle((0.5, 0.5), 0.48, color="white", zorder=1)
 ax.add_patch(circle)
-ax.scatter(x, y, c=dot_colors, s=40, zorder=2)
+ax.scatter(x, y, c=dot_colors, s=30, zorder=2, alpha=0.9)  # Smaller dots, slight transparency
 ax.text(0.5, 0.5, str(correct_value), fontsize=60, ha='center', va='center',
         color=number_color, weight='bold', zorder=3)
 ax.set_xlim(0, 1)
