@@ -39,7 +39,7 @@ def calculate_posterior(prior, results, likelihoods_cb, likelihoods_not_cb):
 # --------------------------
 # TITLE
 # --------------------------
-st.title(" Paridhi's Colorblindness Bayesian Test")
+st.title("Paridhi's Colorblindness Bayesian Test")
 
 if st.button("🔄 Reset All"):
     for key in list(st.session_state.keys()):
@@ -133,7 +133,7 @@ circle = plt.Circle((0.5, 0.5), 0.48, color="white", zorder=1)
 ax.add_patch(circle)
 ax.scatter(x, y, c=dot_colors, s=15, zorder=2, alpha=0.95)  # Much smaller dots for 15k dots
 ax.text(0.5, 0.5, str(correct_value), fontsize=60, ha='center', va='center',
-        color=number_color, weight='bold', zorder=3, alpha=0.7)  # Increased opacity from 0.4 to 0.7
+        color=number_color, weight='bold', zorder=3, alpha=0.55)  # Set to 55% opacity
 ax.set_xlim(0, 1)
 ax.set_ylim(0, 1)
 ax.axis('off')
