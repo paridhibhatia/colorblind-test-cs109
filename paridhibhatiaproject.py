@@ -93,9 +93,15 @@ bg_brightness = np.mean(dot_colors)
 num_brightness = np.mean(number_color)
 contrast = abs(num_brightness - bg_brightness)
 
+# Make tests progressively harder by reducing effective contrast
+difficulty_factor = 1.0 - (st.session_state.test_num * 0.15)  # Gets harder each test
+difficulty_factor = max(difficulty_factor, 0.3)  # Don't make it impossibly hard
+contrast = contrast * difficulty_factor
+
 # Calculate likelihoods (probability of being CORRECT)
-p_correct_if_not_cb = min(0.7 + 0.25 * contrast, 0.98)
-p_correct_if_cb = min(0.05 + 0.1 * contrast, 0.35)
+# Made much harder - less difference between colorblind and non-colorblind performance
+p_correct_if_not_cb = min(0.55 + 0.15 * contrast, 0.75)  # Reduced from 0.7-0.98
+p_correct_if_cb = min(0.25 + 0.15 * contrast, 0.55)     # Increased from 0.05-0.35
 
 # --------------------------
 # DISPLAY TEST
