@@ -39,7 +39,7 @@ def calculate_posterior(prior, results, likelihoods_cb, likelihoods_not_cb):
 # --------------------------
 # TITLE
 # --------------------------
-st.title("🎨 Colorblindness Bayesian Test")
+st.title("Paridhi's Colorblindness Bayesian Test")
 
 if st.button("🔄 Reset All"):
     for key in list(st.session_state.keys()):
