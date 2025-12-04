@@ -1,130 +1,201 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import streamlit as st
-import scipy.stats as stats
 
-# ---------- PRIOR ----------
-def get_prior():
-    gender = st.selectbox("Select your gender:", ["Male", "Female", "Other"])
-    if gender == "Male":
-        return 0.08
-    elif gender == "Female":
-        return 0.005
-    else:
-        return 0.33 * 0.08 + 0.67 * 0.005
+# --------------------------
+# SESSION STATE
+# --------------------------
+if "initialized" not in st.session_state:
+    st.session_state.initialized = True
+    st.session_state.prior = None
+    st.session_state.test_num = 0
+    st.session_state.results = []  # 1 for correct, 0 for wrong
+    st.session_state.likelihoods_cb = []
+    st.session_state.likelihoods_not_cb = []
+    st.session_state.posterior_history = []
 
-# ---------- COLORBLINDNESS TEST ----------
-def colorblindness_test(test_index):
-    # Initialize test-specific dots if not already
-    if test_index not in st.session_state.test_numbers:
-        num_dots = 3000
-        st.session_state.dot_x = np.random.rand(num_dots)
-        st.session_state.dot_y = np.random.rand(num_dots)
-        st.session_state.dot_colors[test_index] = np.random.rand(num_dots, 3)
-        st.session_state.test_numbers[test_index] = np.random.randint(0, 100)
-
-    correct_value = st.session_state.test_numbers[test_index]
-    colors = st.session_state.dot_colors[test_index]
-
-    # Plot the dots and number
-    fig, ax = plt.subplots(figsize=(4,4))
-    circle = plt.Circle((0.5, 0.5), 0.48, color="white", zorder=1)
-    ax.add_patch(circle)
-    ax.scatter(st.session_state.dot_x, st.session_state.dot_y, c=colors, s=40, zorder=2)
-    number_color = np.random.rand(3)
-    ax.text(0.5, 0.5, str(correct_value), fontsize=55, ha='center', va='center', color=number_color, zorder=3)
-    ax.axis('off')
-    st.pyplot(fig)
-
-    # Compute contrast for likelihoods
-    bg_brightness = np.mean(np.mean(colors, axis=0))
-    num_brightness = np.mean(number_color)
-    contrast = abs(num_brightness - bg_brightness)
-    p_correct_if_not_cb = 0.7 + 0.25 * contrast
-    p_correct_if_cb = 0.05 + 0.1 * contrast
-
-    # Input from user
-    guess = st.text_input(f"Enter the number you see for Test {test_index+1}:", key=f"input_{test_index}")
-    if guess.isdigit():
-        guess = int(guess)
-        correct_for_user = (guess == correct_value)
-        return correct_for_user, correct_value, p_correct_if_cb, p_correct_if_not_cb
-    else:
-        return None, correct_value, p_correct_if_cb, p_correct_if_not_cb
-
-# ---------- POSTERIOR CALCULATION ----------
+# --------------------------
+# HELPER FUNCTIONS
+# --------------------------
 def calculate_posterior(prior, results, likelihoods_cb, likelihoods_not_cb):
+    """Calculate posterior by multiplying all likelihoods"""
     likelihood_cb = 1.0
     likelihood_not_cb = 1.0
+    
     for i in range(len(results)):
-        r = results[i]
-        p_cb = likelihoods_cb[i]
-        p_not_cb = likelihoods_not_cb[i]
-        if r == 1:
-            likelihood_cb *= p_cb
-            likelihood_not_cb *= p_not_cb
+        if results[i] == 1:  # Correct
+            likelihood_cb *= likelihoods_cb[i]
+            likelihood_not_cb *= likelihoods_not_cb[i]
+        else:  # Wrong
+            likelihood_cb *= (1 - likelihoods_cb[i])
+            likelihood_not_cb *= (1 - likelihoods_not_cb[i])
+    
+    numerator = prior * likelihood_cb
+    denominator = numerator + (1 - prior) * likelihood_not_cb
+    
+    return numerator / denominator if denominator > 0 else prior
+
+# --------------------------
+# TITLE
+# --------------------------
+st.title("🎨 Colorblindness Bayesian Test")
+
+if st.button("🔄 Reset All"):
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
+    st.rerun()
+
+# --------------------------
+# STEP 1: GET PRIOR
+# --------------------------
+if st.session_state.prior is None:
+    st.subheader("Step 1: What is your gender?")
+    gender = st.radio(
+        "Select:",
+        ["Male", "Female", "Other/Prefer not to say"],
+        help="This affects the prior probability based on population statistics"
+    )
+    
+    if gender == "Male":
+        prior = 0.08
+    elif gender == "Female":
+        prior = 0.005
+    else:
+        prior = 0.33 * 0.08 + 0.67 * 0.005
+    
+    st.info(f"Prior probability of colorblindness: **{prior:.1%}** ({prior:.4f})")
+    
+    if st.button("▶️ Start Testing"):
+        st.session_state.prior = prior
+        st.session_state.posterior_history.append(prior)
+        st.rerun()
+    
+    st.stop()
+
+# --------------------------
+# GENERATE TEST
+# --------------------------
+st.subheader(f"Test #{st.session_state.test_num + 1}")
+
+# Use test number as seed for reproducibility
+np.random.seed(st.session_state.test_num * 42)
+
+correct_value = np.random.randint(0, 100)
+num_dots = 500
+
+x = np.random.rand(num_dots)
+y = np.random.rand(num_dots)
+dot_colors = np.random.rand(num_dots, 3)
+number_color = np.random.rand(3)
+
+# Calculate contrast
+bg_brightness = np.mean(dot_colors)
+num_brightness = np.mean(number_color)
+contrast = abs(num_brightness - bg_brightness)
+
+# Calculate likelihoods (probability of being CORRECT)
+p_correct_if_not_cb = min(0.7 + 0.25 * contrast, 0.98)
+p_correct_if_cb = min(0.05 + 0.1 * contrast, 0.35)
+
+# --------------------------
+# DISPLAY TEST
+# --------------------------
+fig, ax = plt.subplots(figsize=(5, 5))
+circle = plt.Circle((0.5, 0.5), 0.48, color="white", zorder=1)
+ax.add_patch(circle)
+ax.scatter(x, y, c=dot_colors, s=40, zorder=2)
+ax.text(0.5, 0.5, str(correct_value), fontsize=60, ha='center', va='center',
+        color=number_color, weight='bold', zorder=3)
+ax.set_xlim(0, 1)
+ax.set_ylim(0, 1)
+ax.axis('off')
+st.pyplot(fig)
+
+st.write(f"**Test difficulty:** Contrast = {contrast:.3f}")
+st.write(f"- If NOT colorblind: {p_correct_if_not_cb:.1%} chance of correct answer")
+st.write(f"- If colorblind: {p_correct_if_cb:.1%} chance of correct answer")
+
+# --------------------------
+# GET USER ANSWER
+# --------------------------
+user_guess = st.text_input("What number do you see?", key=f"input_{st.session_state.test_num}")
+
+if st.button("Submit Answer"):
+    if not user_guess.isdigit():
+        st.error("Please enter a valid number!")
+    else:
+        guess = int(user_guess)
+        is_correct = (guess == correct_value)
+        
+        # Store result
+        st.session_state.results.append(1 if is_correct else 0)
+        st.session_state.likelihoods_cb.append(p_correct_if_cb)
+        st.session_state.likelihoods_not_cb.append(p_correct_if_not_cb)
+        
+        # Calculate new posterior
+        posterior = calculate_posterior(
+            st.session_state.prior,
+            st.session_state.results,
+            st.session_state.likelihoods_cb,
+            st.session_state.likelihoods_not_cb
+        )
+        st.session_state.posterior_history.append(posterior)
+        st.session_state.test_num += 1
+        
+        # Show result
+        if is_correct:
+            st.success(f"✅ Correct! The number was {correct_value}")
         else:
-            likelihood_cb *= (1 - p_cb)
-            likelihood_not_cb *= (1 - p_not_cb)
-    posterior = (prior * likelihood_cb) / (prior * likelihood_cb + (1 - prior) * likelihood_not_cb)
-    return posterior
+            st.error(f"❌ Wrong. The correct number was {correct_value}")
+        
+        st.write("---")
+        st.write("**📊 Bayesian Update:**")
+        st.write(f"- Prior (before this test): {st.session_state.posterior_history[-2]:.4f}")
+        st.write(f"- Posterior (after this test): {posterior:.4f}")
+        st.write(f"- Change: {posterior - st.session_state.posterior_history[-2]:+.4f}")
+        
+        if is_correct:
+            st.write(f"✓ Since you were correct and non-colorblind people are more likely to be correct ({p_correct_if_not_cb:.1%} vs {p_correct_if_cb:.1%}), your probability of being colorblind should **decrease**.")
+        else:
+            st.write(f"✗ Since you were wrong and colorblind people are more likely to be wrong, your probability of being colorblind should **increase**.")
+        
+        st.write("---")
+        
+        if st.button("Continue to Next Test"):
+            st.rerun()
 
-# ---------- MAIN APP ----------
-def main():
-    st.title("Colorblindness Probability Test")
-    prior = get_prior()
-    st.write(f"Your prior probability of colorblindness is: {prior:.3f}")
+# --------------------------
+# RESULTS SUMMARY
+# --------------------------
+st.divider()
+st.subheader("📈 Current Results")
 
-    # Initialize session state
-    if "results" not in st.session_state:
-        st.session_state.results = []
-        st.session_state.likelihoods_cb = []
-        st.session_state.likelihoods_not_cb = []
-        st.session_state.test_numbers = {}  # store correct numbers per test
-        st.session_state.dot_colors = {}    # store colors per test
+if st.session_state.test_num > 0:
+    current_posterior = st.session_state.posterior_history[-1]
+    st.metric(
+        label="Current Probability of Colorblindness",
+        value=f"{current_posterior:.1%}",
+        delta=f"{current_posterior - st.session_state.prior:+.1%}"
+    )
+    
+    # Plot posterior history
+    if len(st.session_state.posterior_history) > 1:
+        fig, ax = plt.subplots(figsize=(8, 4))
+        ax.plot(range(len(st.session_state.posterior_history)), 
+                st.session_state.posterior_history, 
+                marker='o', linewidth=2, markersize=8)
+        ax.set_xlabel("Test Number")
+        ax.set_ylabel("Probability of Colorblindness")
+        ax.set_title("Posterior Probability Update Over Tests")
+        ax.grid(True, alpha=0.3)
+        ax.set_ylim(0, max(st.session_state.posterior_history) * 1.2)
+        st.pyplot(fig)
+    
+    # Test history
+    st.write("### Test History")
+    for i in range(len(st.session_state.results)):
+        result = "✅ Correct" if st.session_state.results[i] == 1 else "❌ Wrong"
+        st.write(f"**Test {i+1}**: {result} | "
+                f"P(colorblind): {st.session_state.posterior_history[i]:.4f} → {st.session_state.posterior_history[i+1]:.4f}")
 
-    num_tests = st.slider("How many tests do you want to run?", 1, 10, 3)
-
-    # Run tests
-    for i in range(num_tests):
-        correct, correct_value, p_cb, p_not_cb = colorblindness_test(i)
-        if correct is not None:
-            if len(st.session_state.results) <= i:
-                st.session_state.results.append(1 if correct else 0)
-                st.session_state.likelihoods_cb.append(p_cb)
-                st.session_state.likelihoods_not_cb.append(p_not_cb)
-
-            st.success("Correct!" if correct else f"Wrong! Correct answer: {correct_value}")
-
-            posterior = calculate_posterior(prior, st.session_state.results, 
-                                            st.session_state.likelihoods_cb, 
-                                            st.session_state.likelihoods_not_cb)
-            st.write(f"Updated posterior probability of being colorblind: {posterior:.3f}")
-
-    # ---------- Beta Posterior ----------
-    if st.session_state.results:
-        alpha_prior = prior * 10
-        beta_prior = (1 - prior) * 10
-        alpha_post = alpha_prior + sum(st.session_state.results)
-        beta_post = beta_prior + len(st.session_state.results) - sum(st.session_state.results)
-        posterior_mean = alpha_post / (alpha_post + beta_post)
-        posterior_std = np.sqrt((alpha_post * beta_post) / ((alpha_post + beta_post)**2 * (alpha_post + beta_post + 1)))
-
-        st.write(f"Posterior mean probability: {posterior_mean:.3f}")
-        st.write(f"Posterior standard deviation: {posterior_std:.3f}")
-
-        # Plot prior vs posterior
-        x = np.linspace(0, 1, 100)
-        prior_pdf = stats.beta.pdf(x, alpha_prior, beta_prior)
-        posterior_pdf = stats.beta.pdf(x, alpha_post, beta_post)
-        fig2, ax2 = plt.subplots()
-        ax2.plot(x, prior_pdf, label="Prior")
-        ax2.plot(x, posterior_pdf, label="Posterior")
-        ax2.set_xlabel("Probability of Being Colorblind")
-        ax2.set_ylabel("Density")
-        ax2.set_title("Prior vs Posterior Distribution")
-        ax2.legend()
-        st.pyplot(fig2)
-
-if __name__ == "__main__":
-    main()
+st.write(f"**Tests completed:** {st.session_state.test_num}")
