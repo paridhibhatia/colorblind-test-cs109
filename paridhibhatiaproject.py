@@ -39,7 +39,7 @@ def calculate_posterior(prior, results, likelihoods_cb, likelihoods_not_cb):
 # --------------------------
 # TITLE
 # --------------------------
-st.title("🎨 Paridhi's Colorblindness Bayesian Test")
+st.title("🎨 Colorblindness Bayesian Test")
 
 if st.button("🔄 Reset All"):
     for key in list(st.session_state.keys()):
@@ -80,7 +80,6 @@ if st.session_state.prior is None:
 # --------------------------
 # GENERATE TEST
 # --------------------------
-st.subheader(f"Test #{st.session_state.test_num + 1} of {st.session_state.num_tests}")
 
 # Check if all tests are completed
 if st.session_state.test_num >= st.session_state.num_tests:
@@ -98,6 +97,8 @@ if st.session_state.test_num >= st.session_state.num_tests:
         st.warning("Based on your performance, you may be colorblind. Consider consulting an eye specialist.")
     
     st.stop()
+
+st.subheader(f"Test #{st.session_state.test_num + 1} of {st.session_state.num_tests}")
 
 # Use test number as seed for reproducibility
 np.random.seed(st.session_state.test_num * 42)
@@ -132,7 +133,7 @@ circle = plt.Circle((0.5, 0.5), 0.48, color="white", zorder=1)
 ax.add_patch(circle)
 ax.scatter(x, y, c=dot_colors, s=15, zorder=2, alpha=0.95)  # Much smaller dots for 15k dots
 ax.text(0.5, 0.5, str(correct_value), fontsize=60, ha='center', va='center',
-        color=number_color, weight='bold', zorder=3)
+        color=number_color, weight='bold', zorder=3, alpha=0.4)  # Much less opaque!
 ax.set_xlim(0, 1)
 ax.set_ylim(0, 1)
 ax.axis('off')
