@@ -8,6 +8,7 @@ import streamlit as st
 if "initialized" not in st.session_state:
     st.session_state.initialized = True
     st.session_state.prior = None
+    st.session_state.num_tests = 5  # Default number of tests
     st.session_state.test_num = 0
     st.session_state.results = []  # 1 for correct, 0 for wrong
     st.session_state.likelihoods_cb = []
@@ -38,7 +39,7 @@ def calculate_posterior(prior, results, likelihoods_cb, likelihoods_not_cb):
 # --------------------------
 # TITLE
 # --------------------------
-st.title("🎨 Colorblindness Bayesian Test")
+st.title("🎨 Paridhi's Colorblindness Bayesian Test")
 
 if st.button("🔄 Reset All"):
     for key in list(st.session_state.keys()):
@@ -65,6 +66,10 @@ if st.session_state.prior is None:
     
     st.info(f"Prior probability of colorblindness: **{prior:.1%}** ({prior:.4f})")
     
+    st.subheader("Step 2: How many tests do you want to take?")
+    num_tests = st.slider("Number of tests:", min_value=3, max_value=10, value=5, step=1)
+    st.session_state.num_tests = num_tests
+    
     if st.button("▶️ Start Testing"):
         st.session_state.prior = prior
         st.session_state.posterior_history.append(prior)
@@ -75,7 +80,24 @@ if st.session_state.prior is None:
 # --------------------------
 # GENERATE TEST
 # --------------------------
-st.subheader(f"Test #{st.session_state.test_num + 1}")
+st.subheader(f"Test #{st.session_state.test_num + 1} of {st.session_state.num_tests}")
+
+# Check if all tests are completed
+if st.session_state.test_num >= st.session_state.num_tests:
+    st.success("🎉 All tests completed!")
+    st.balloons()
+    
+    current_posterior = st.session_state.posterior_history[-1]
+    if current_posterior < 0.01:
+        st.info("Based on your performance, you are very likely **NOT colorblind**!")
+    elif current_posterior < 0.05:
+        st.info("Based on your performance, you are probably **NOT colorblind**, but there's some uncertainty.")
+    elif current_posterior < 0.15:
+        st.warning("Results are uncertain. You might want to consult an eye specialist.")
+    else:
+        st.warning("Based on your performance, you may be colorblind. Consider consulting an eye specialist.")
+    
+    st.stop()
 
 # Use test number as seed for reproducibility
 np.random.seed(st.session_state.test_num * 42)
@@ -204,4 +226,4 @@ if st.session_state.test_num > 0:
         st.write(f"**Test {i+1}**: {result} | "
                 f"P(colorblind): {st.session_state.posterior_history[i]:.4f} → {st.session_state.posterior_history[i+1]:.4f}")
 
-st.write(f"**Tests completed:** {st.session_state.test_num}")
+st.write(f"**Tests completed:** {st.session_state.test_num} / {st.session_state.num_tests}")
