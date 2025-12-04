@@ -103,7 +103,7 @@ if st.session_state.test_num >= st.session_state.num_tests:
 np.random.seed(st.session_state.test_num * 42)
 
 correct_value = np.random.randint(0, 100)
-num_dots = 2000  # Increased from 500 to make it much harder to see
+num_dots = 15000  # Massive increase from 2000 - extremely dense background
 
 x = np.random.rand(num_dots)
 y = np.random.rand(num_dots)
@@ -115,15 +115,14 @@ bg_brightness = np.mean(dot_colors)
 num_brightness = np.mean(number_color)
 contrast = abs(num_brightness - bg_brightness)
 
-# Make tests progressively harder by reducing effective contrast
-difficulty_factor = 1.0 - (st.session_state.test_num * 0.10)  # Gets harder more slowly
-difficulty_factor = max(difficulty_factor, 0.5)  # Keep minimum at 50% to maintain uncertainty
+# Make tests progressively harder VERY slowly
+difficulty_factor = 1.0 - (st.session_state.test_num * 0.04)  # Only 4% harder per test
+difficulty_factor = max(difficulty_factor, 0.7)  # Keep minimum at 70% to maintain high uncertainty
 contrast = contrast * difficulty_factor
 
-# Calculate likelihoods (probability of being CORRECT)
-# Made harder with less separation between colorblind/non-colorblind
-p_correct_if_not_cb = min(0.50 + 0.20 * contrast, 0.75)  # 50-75% range
-p_correct_if_cb = min(0.30 + 0.15 * contrast, 0.60)      # 30-60% range
+# Calculate likelihoods - MUCH closer together for gradual updates
+p_correct_if_not_cb = min(0.45 + 0.25 * contrast, 0.70)  # 45-70% range
+p_correct_if_cb = min(0.35 + 0.20 * contrast, 0.60)      # 35-60% range (only 10% difference!)
 
 # --------------------------
 # DISPLAY TEST
@@ -131,7 +130,7 @@ p_correct_if_cb = min(0.30 + 0.15 * contrast, 0.60)      # 30-60% range
 fig, ax = plt.subplots(figsize=(5, 5))
 circle = plt.Circle((0.5, 0.5), 0.48, color="white", zorder=1)
 ax.add_patch(circle)
-ax.scatter(x, y, c=dot_colors, s=30, zorder=2, alpha=0.9)  # Smaller dots, slight transparency
+ax.scatter(x, y, c=dot_colors, s=15, zorder=2, alpha=0.95)  # Much smaller dots for 15k dots
 ax.text(0.5, 0.5, str(correct_value), fontsize=60, ha='center', va='center',
         color=number_color, weight='bold', zorder=3)
 ax.set_xlim(0, 1)
@@ -178,9 +177,9 @@ if st.button("Submit Answer"):
         
         st.write("---")
         st.write("**📊 Bayesian Update:**")
-        st.write(f"- Prior (before this test): {st.session_state.posterior_history[-2]:.4f}")
-        st.write(f"- Posterior (after this test): {posterior:.4f}")
-        st.write(f"- Change: {posterior - st.session_state.posterior_history[-2]:+.4f}")
+        st.write(f"- Prior (before this test): {st.session_state.posterior_history[-2]:.6f}")
+        st.write(f"- Posterior (after this test): {posterior:.6f}")
+        st.write(f"- Change: {posterior - st.session_state.posterior_history[-2]:+.6f}")
         
         if is_correct:
             st.write(f"✓ Since you were correct and non-colorblind people are more likely to be correct ({p_correct_if_not_cb:.1%} vs {p_correct_if_cb:.1%}), your probability of being colorblind should **decrease**.")
@@ -202,8 +201,8 @@ if st.session_state.test_num > 0:
     current_posterior = st.session_state.posterior_history[-1]
     st.metric(
         label="Current Probability of Colorblindness",
-        value=f"{current_posterior:.1%}",
-        delta=f"{current_posterior - st.session_state.prior:+.1%}"
+        value=f"{current_posterior:.4%}",
+        delta=f"{current_posterior - st.session_state.prior:+.4%}"
     )
     
     # Plot posterior history
@@ -224,6 +223,6 @@ if st.session_state.test_num > 0:
     for i in range(len(st.session_state.results)):
         result = "✅ Correct" if st.session_state.results[i] == 1 else "❌ Wrong"
         st.write(f"**Test {i+1}**: {result} | "
-                f"P(colorblind): {st.session_state.posterior_history[i]:.4f} → {st.session_state.posterior_history[i+1]:.4f}")
+                f"P(colorblind): {st.session_state.posterior_history[i]:.6f} → {st.session_state.posterior_history[i+1]:.6f}")
 
 st.write(f"**Tests completed:** {st.session_state.test_num} / {st.session_state.num_tests}")
