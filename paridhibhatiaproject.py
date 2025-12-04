@@ -39,7 +39,7 @@ def calculate_posterior(prior, results, likelihoods_cb, likelihoods_not_cb):
 # --------------------------
 # TITLE
 # --------------------------
-st.title("Paridhi's Colorblindness Bayesian Test")
+st.title(" Paridhi's Colorblindness Bayesian Test")
 
 if st.button("🔄 Reset All"):
     for key in list(st.session_state.keys()):
@@ -100,8 +100,8 @@ if st.session_state.test_num >= st.session_state.num_tests:
 
 st.subheader(f"Test #{st.session_state.test_num + 1} of {st.session_state.num_tests}")
 
-# Use test number as seed for reproducibility
-np.random.seed(st.session_state.test_num * 42)
+# Use test number AND a random component for seed to get different numbers each time
+np.random.seed(st.session_state.test_num * 42 + int(st.session_state.prior * 10000))
 
 correct_value = np.random.randint(0, 100)
 num_dots = 15000  # Massive increase from 2000 - extremely dense background
@@ -133,7 +133,7 @@ circle = plt.Circle((0.5, 0.5), 0.48, color="white", zorder=1)
 ax.add_patch(circle)
 ax.scatter(x, y, c=dot_colors, s=15, zorder=2, alpha=0.95)  # Much smaller dots for 15k dots
 ax.text(0.5, 0.5, str(correct_value), fontsize=60, ha='center', va='center',
-        color=number_color, weight='bold', zorder=3, alpha=0.4)  # Much less opaque!
+        color=number_color, weight='bold', zorder=3, alpha=0.7)  # Increased opacity from 0.4 to 0.7
 ax.set_xlim(0, 1)
 ax.set_ylim(0, 1)
 ax.axis('off')
@@ -188,6 +188,10 @@ if st.button("Submit Answer"):
             st.write(f"✗ Since you were wrong and colorblind people are more likely to be wrong, your probability of being colorblind should **increase**.")
         
         st.write("---")
+        
+        # If this was the last test, automatically go to end screen
+        if st.session_state.test_num >= st.session_state.num_tests:
+            st.rerun()
         
         if st.button("Continue to Next Test"):
             st.rerun()
